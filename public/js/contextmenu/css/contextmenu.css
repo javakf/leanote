@@ -10,6 +10,7 @@
 	-webkit-box-shadow: 0 6px 12px rgba(0,0,0,.175);
 	box-shadow: 0 6px 12px rgba(0,0,0,.175);
 	background-clip: padding-box;
+	overflow: auto;
 }
 .b-m-split {
 	height: 6px;
@@ -21,7 +22,7 @@
 {
     padding: 4px 10px 4px 4px;
     cursor: default;
-    line-height:100%;
+    line-height:1.2;
 }
 .b-m-idisable
 {

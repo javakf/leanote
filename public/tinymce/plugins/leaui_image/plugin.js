@@ -57,16 +57,30 @@ tinymce.PluginManager.add('leaui_image', function(editor, url) {
 		LEAUI_DATAS = datas;
 
 		function GetTheHtml(){
-			var html = '<iframe id="leauiIfr" src="'+ url + '/index.html'+ '?' + new Date().getTime() + '" frameborder="0"></iframe>';
+			var html = '<iframe id="leauiIfr" src="/album/index'+ '?' + new Date().getTime() + '" frameborder="0"></iframe>';
 			return html;
 		}
-		
+
+		var w = $(document).width() - 10;
+		if(w > 805) {
+			w = 805;
+		}
+		var h = $(document).height() - 100;
+		if(h > 365) {
+			h = 365;
+		}
 		win = editor.windowManager.open({
-			title: "Manage Image",
-			width : 885,
-			height : 475,
+			title: "Image",
+			width : w,
+			height : h,
 			html: GetTheHtml(),
 			buttons: [
+				{
+					text: 'Cancel',
+					onclick: function() {
+						this.parent().parent().close();
+					}
+				},
 				{
 				text: 'Insert Image',
 				subtype: 'primary',
@@ -88,7 +102,7 @@ tinymce.PluginManager.add('leaui_image', function(editor, url) {
 							d.height = img.getAttribute("data-height");
 							d.title = img.getAttribute("data-title");
 
-							datas.push(d); 
+							datas.push(d);
 						}
 					};
 
@@ -104,66 +118,78 @@ tinymce.PluginManager.add('leaui_image', function(editor, url) {
 						}
 						data.src = trueSrc;
 						
-						/*
-						var width = "", height="", title="";
-						if(data.width) {
-							width = 'width="' + data.width +'" ';
-						}
-						if(data.height) {
-							height = 'height="' + data.height +'" ';
-						}
-						if(data.title) {
-							title = 'title="' + data.title +'" ';
-						}
-						var attrs = width + height + title;
-						editor.insertContent('<img ' + attrs + ' data-src="' + src + '" src="' + trueSrc + '" />');
-						*/
-						
-						// 这里, 如果图片宽度过大, 这里设置成500px
-						var back = (function(data2, i) {
-							var d = {};
-							var imgElm;
-							// 先显示loading...
-							d.id = '__mcenew' + i;
-							d.src = "http://leanote.com/images/loading-24.gif";
-							imgElm = dom.createHTML('img', d);
-							editor.insertContent(imgElm);
-							imgElm = dom.get(d.id);
-							log(imgElm)
-							
-							return function(wh) {
-								if(wh && wh.width) {
-									if(wh.width > 600) {
-										wh.width = 600;
-									}
-									data2.width = wh.width;
-								}
-								dom.setAttrib(imgElm, 'src', data2.src);
-								dom.setAttrib(imgElm, 'width', data2.width);
-								dom.setAttrib(imgElm, 'title', data2.title);
+						var renderImage = function(data) {
+							// 这里, 如果图片宽度过大, 这里设置成500px
+							var back = (function(data2, i) {
+								var d = {};
+								var imgElm;
+								// 先显示loading...
+								d.id = '__mcenew' + i;
+								d.src = "http://leanote.com/images/loading-24.gif";
+								imgElm = dom.createHTML('img', d);
+								editor.insertContent(imgElm);
+								imgElm = dom.get(d.id);
 								
-								dom.setAttrib(imgElm, 'id', null);
+								return function(wh) {
+									if(wh && wh.width) {
+										if(wh.width > 600) {
+											wh.width = 600;
+										}
+										data2.width = wh.width;
+									}
+									dom.setAttrib(imgElm, 'src', data2.src);
+									// dom.setAttrib(imgElm, 'width', data2.width);
+									dom.setAttrib(imgElm, 'title', data2.title);
+									
+									dom.setAttrib(imgElm, 'id', null);
+								}
+							})(data, i);
+							getImageSize(data.src, back);
+						}
+						
+						// outputImage?fileId=123232323
+						var fileId = "";
+						fileIds = trueSrc.split("fileId=")
+						if(fileIds.length == 2 && fileIds[1].length == "53aecf8a8a039a43c8036282".length) {
+							fileId = fileIds[1];
+						}
+						if(fileId) {
+							// 得到fileId, 如果这个笔记不是我的, 那么肯定是协作的笔记, 那么需要将图片copy给原note owner
+							// 博客设置中不用没有Note
+							var curNote;
+							if(Note && Note.getCurNote) {
+								curNote = Note.getCurNote();
 							}
-						})(data, i);
-						getImageSize(data.src, back);
-					}
+							if(curNote && curNote.UserId != UserInfo.UserId) {
+								(function(data) {
+									ajaxPost("/file/copyImage", {userId: UserInfo.UserId, fileId: fileId, toUserId: curNote.UserId}, function(re) {
+										if(reIsOk(re) && re.Id) {
+											var urlPrefix = UrlPrefix; // window.location.protocol + "//" + window.location.host;
+											data.src = urlPrefix + "/api/file/getImage?fileId=" + re.Id;
+										}
+										renderImage(data);
+									});
+								})(data);
+							} else {
+								renderImage(data);
+							}
+						} else {
+							renderImage(data);
+						}
+						
+					} // end for
+					
 					this.parent().parent().close();
 				}
-				},	
-				{
-				text: 'Cancel',
-				onclick: function() {
-					this.parent().parent().close();
-				}
-			}]
+				}]
 		});
 	}
-	
+
 	editor.addButton('leaui_image', {
 		icon: 'image',
 		tooltip: 'Insert/edit image',
 		onclick: showDialog,
-		stateSelector: 'img:not([data-mce-object])'
+		stateSelector: 'img:not([data-mind-json])'
 	});
 
 	editor.addMenuItem('leaui_image', {
@@ -173,19 +199,28 @@ tinymce.PluginManager.add('leaui_image', function(editor, url) {
 		context: 'insert',
 		prependToContext: true
 	});
-	
+
 	// 为解决在editor里拖动图片问题
 	// 2014/7/8 21:43 浮躁的一天终有收获
+	// 2015/10/16
+	// TODO 如果把编辑器内的图片拖到外面去, 还是会出现drop images to here
     var dragStart = false;
     editor.on("dragstart", function(e) {
+    	// readonly时不让drag图片
+    	if (LEA.readOnly) {
+	    	e.preventDefault();
+	    	e.stopPropagation();
+    	}
     	dragStart = true;
     });
     editor.on("dragend", function(e) {
     	dragStart = false;
     });
 	editor.on("dragover", function(e) {
-		if(!dragStart) {
-    		$("body").trigger("dragover");
+	    if(dragStart) {
+    		// 表示编辑器内在拖动图片, 则停止冒泡
+    		e.preventDefault();
+	    	e.stopPropagation();
     	}
     });
 });

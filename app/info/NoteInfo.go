@@ -1,7 +1,7 @@
 package info
 
 import (
-	"labix.org/v2/mgo/bson"
+	"gopkg.in/mgo.v2/bson"
 	"time"
 )
 
@@ -15,18 +15,36 @@ type Note struct {
 	Title         string        `Title` // 标题
 	Desc          string        `Desc`  // 描述, 非html
 
-	ImgSrc  string   `ImgSrc` // 图片, 第一张缩略图地址
-	Tags    []string `Tags,omitempty`
-	IsTrash bool     `IsTrash` // 是否是trash, 默认是false
+	ImgSrc string   `ImgSrc` // 图片, 第一张缩略图地址
+	Tags   []string `Tags,omitempty`
 
-	IsBlog bool `IsBlog,omitempty` // 是否设置成了blog 2013/12/29 新加
-	IsTop  bool `IsTop,omitempty`  // blog是否置顶
+	IsTrash bool `IsTrash` // 是否是trash, 默认是false
+
+	IsBlog         bool   `IsBlog,omitempty`      // 是否设置成了blog 2013/12/29 新加
+	UrlTitle       string `UrlTitle,omitempty`    // 博客的url标题, 为了更友好的url, 在UserId, UrlName下唯一
+	IsRecommend    bool   `IsRecommend,omitempty` // 是否为推荐博客 2014/9/24新加
+	IsTop          bool   `IsTop,omitempty`       // blog是否置顶
+	HasSelfDefined bool   `HasSelfDefined`        // 是否已经自定义博客图片, desc, abstract
+
+	// 2014/9/28 添加评论社交功能
+	ReadNum    int `ReadNum,omitempty`    // 阅读次数 2014/9/28
+	LikeNum    int `LikeNum,omitempty`    // 点赞次数 2014/9/28
+	CommentNum int `CommentNum,omitempty` // 评论次数 2014/9/28
 
 	IsMarkdown bool `IsMarkdown` // 是否是markdown笔记, 默认是false
 
+	AttachNum int `AttachNum` // 2014/9/21, attachments num
+
 	CreatedTime   time.Time     `CreatedTime`
 	UpdatedTime   time.Time     `UpdatedTime`
-	UpdatedUserId bson.ObjectId `bson:"UpdatedUserId"` // 如果共享了, 并可写, 那么可能是其它他修改了
+	RecommendTime time.Time     `RecommendTime,omitempty` // 推荐时间
+	PublicTime    time.Time     `PublicTime,omitempty`    // 发表时间, 公开为博客则设置
+	UpdatedUserId bson.ObjectId `bson:"UpdatedUserId"`    // 如果共享了, 并可写, 那么可能是其它他修改了
+
+	// 2015/1/15, 更新序号
+	Usn int `Usn` // UpdateSequenceNum
+
+	IsDeleted bool `IsDeleted` // 删除位
 }
 
 // 内容
@@ -54,11 +72,32 @@ type NoteAndContent struct {
 // 每一个历史记录对象
 type EachHistory struct {
 	UpdatedUserId bson.ObjectId `UpdatedUserId`
-	UpdatedTime   time.Time `UpdatedTime`
-	Content  string `Content`
+	UpdatedTime   time.Time     `UpdatedTime`
+	Content       string        `Content`
 }
 type NoteContentHistory struct {
-	NoteId bson.ObjectId `bson:"_id,omitempty"`
-	UserId bson.ObjectId `bson:"UserId"` // 所属者
-	Histories  []EachHistory `Histories`
+	NoteId    bson.ObjectId `bson:"_id,omitempty"`
+	UserId    bson.ObjectId `bson:"UserId"` // 所属者
+	Histories []EachHistory `Histories`
+}
+
+// 为了NoteController接收参数
+
+// 更新note或content
+// 肯定会传userId(谁的), NoteId
+// 会传Title, Content, Tags, 一种或几种
+type NoteOrContent struct {
+	NotebookId string
+	NoteId     string
+	UserId     string
+	Title      string
+	Desc       string
+	ImgSrc     string
+	Tags       string
+	Content    string
+	Abstract   string
+	IsNew      bool
+	IsMarkdown bool
+	FromUserId string // 为共享而新建
+	IsBlog     bool   // 是否是blog, 更新note不需要修改, 添加note时才有可能用到, 此时需要判断notebook是否设为Blog
 }

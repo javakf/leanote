@@ -1,11 +1,13 @@
 package netutil
+
 import (
-	"strings"
 	"os"
-//	"path/filepath"
-	"net/http"
-	"io/ioutil"
+	"strings"
+	//	"path/filepath"
 	. "github.com/leanote/leanote/app/lea"
+	"io/ioutil"
+	"net"
+	"net/http"
 )
 
 // net的util
@@ -13,38 +15,35 @@ import (
 // toPath 文件保存的目录
 // 默认是/tmp
 // 返回文件的完整目录
-func WriteUrl(url string, toPath string) (path string, ok bool) {
+func WriteUrl(url string, toPath string) (length int64, newFilename, path string, ok bool) {
 	if url == "" {
-		return;
+		return
 	}
 	content, err := GetContent(url)
 	if err != nil {
-		return;
+		return
 	}
-	
+
+	length = int64(len(content))
+
 	// a.html?a=a11&xxx
 	url = trimQueryParams(url)
 	_, ext := SplitFilename(url)
 	if toPath == "" {
 		toPath = "/tmp"
 	}
-//	dir := filepath.Dir(toPath)
-	newFilename := NewGuid() + ext
+	//	dir := filepath.Dir(toPath)
+	newFilename = NewGuid() + ext
 	fullPath := toPath + "/" + newFilename
-	/*
-	if err := os.MkdirAll(dir, 0777); err != nil {
-		return 
-	}
-	*/
-	
+
 	// 写到文件中
 	file, err := os.Create(fullPath)
-    defer file.Close()
-    if err != nil {
-    	return
+	defer file.Close()
+	if err != nil {
+		return
 	}
 	file.Write(content)
-	
+
 	path = fullPath
 	ok = true
 	return
@@ -54,40 +53,51 @@ func WriteUrl(url string, toPath string) (path string, ok bool) {
 func GetContent(url string) (content []byte, err error) {
 	var resp *http.Response
 	resp, err = http.Get(url)
-	if(resp != nil && resp.Body != nil) {
+	Log(err)
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	} else {
 	}
-    if resp == nil || resp.Body == nil || err != nil || resp.StatusCode != http.StatusOK {
-		return
-    }
-    
-    var buf []byte
-   	buf, err = ioutil.ReadAll(resp.Body)
-   	if(err != nil) {
+	if resp == nil || resp.Body == nil || err != nil || resp.StatusCode != http.StatusOK {
 		return
 	}
-	
-   	content = buf;
-   	err = nil
-    return
+
+	var buf []byte
+	buf, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		Log(err)
+		return
+	}
+
+	content = buf
+	err = nil
+	return
 }
 
 // 将url ?, #后面的字符串去掉
 func trimQueryParams(url string) string {
-	pos := strings.Index(url, "?");
+	pos := strings.Index(url, "?")
 	if pos != -1 {
-		url = Substr(url, 0, pos);
+		url = Substr(url, 0, pos)
 	}
-	
-	pos = strings.Index(url, "#");
+
+	pos = strings.Index(url, "#")
 	if pos != -1 {
-		url = Substr(url, 0, pos);
+		url = Substr(url, 0, pos)
 	}
-	
-	pos = strings.Index(url, "!");
+
+	pos = strings.Index(url, "!")
 	if pos != -1 {
-		url = Substr(url, 0, pos);
+		url = Substr(url, 0, pos)
 	}
-	return url;
+	return url
+}
+
+// 通过domain得到ip
+func GetIpFromDomain(domain string) string {
+	ip, _ := net.LookupIP(domain)
+	if ip != nil && len(ip) > 0 {
+		return ip[0].String()
+	}
+	return ""
 }

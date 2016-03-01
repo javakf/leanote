@@ -21,6 +21,7 @@ define("tinymce/pasteplugin/Plugin", [
 	"tinymce/pasteplugin/Quirks"
 ], function(PluginManager, Clipboard, WordFilter, Quirks) {
 	var userIsInformed;
+	var userIsInformed2;
 
 	PluginManager.add('paste', function(editor) {
 		var self = this, clipboard, settings = editor.settings;
@@ -47,6 +48,7 @@ define("tinymce/pasteplugin/Plugin", [
 		self.clipboard = clipboard = new Clipboard(editor);
 		self.quirks = new Quirks(editor);
 		self.wordFilter = new WordFilter(editor);
+		clipboard.copyImage = true;
 
 		if (editor.settings.paste_as_text) {
 			self.clipboard.pasteFormat = "text";

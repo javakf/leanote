@@ -1,3 +1,4 @@
+@import "basic.less";
 
 @bgColor: #fff;
 @headerBgColor: #25313e;
@@ -13,7 +14,7 @@
 @leftNotebookWidth: 170px;
 @noteListWidth: 250px;
 @noteActiveBg: #65bd77;
-
+ 
 @bgColor: #fbfcf7;
 @headerBgColor: #fbfcf7;
 @fontFamily: 'Open Sans','Helvetica Neue',Arial,'Hiragino Sans GB','Microsoft YaHei','WenQuanYi Micro Hei',sans-serif;
@@ -67,15 +68,12 @@
 html,body {
 	background-color: @bgColor;
 }
-*, body {
+body {
   font-family: @fontFamily;
   font-weight: 300;
   font-size: @fontSize;
 }
-h1, h2, h3 {
-  font-family: @fontFamily;
-  font-weight: 300 !important;
-}
+
 a {
   color: @aBlackColor;
   cursor: pointer;
@@ -118,9 +116,11 @@ a.raw:hover {
 
 #searchWrap, #logo, #switcher, 
 #leftNotebook, 
-.noteSplit
-{
-	display: none;	
+.noteSplit,
+.for-split,
+#curNotebookForNewNote
+{ 
+	display: none !important;	
 }
 
 #header ul {
@@ -151,8 +151,7 @@ a.raw:hover {
   -webkit-box-shadow: none;
   box-shadow: none;
   border: 1px solid @hColor;
-  overflow-x: hidden; 
-  overflow-y: auto;
+  overflow: visible;
 }
 .dropdown-menu li {
   padding-left: 10px;
@@ -381,6 +380,13 @@ a.raw:hover {
 		font-size: 14px;
 		line-height: 22px;			
     }
+	.navbar-default {
+		height: auto !important;
+		border: none !important;
+	}
+	.layout-wrapper-l3 {
+		border: none !important;
+	}
 }
 #editorContent {
   position: absolute;
@@ -416,7 +422,11 @@ a.raw:hover {
   position: relative; 
   height: 30px; 
   overflow: hidden; 
+  border-bottom: none;
   background-color: @bgColor;
+}
+#wmd-button-bar {
+  overflow: visible;
 }
 /* 编辑器工具 需要important, 因为mce还要有js加载css, 肯定在此之后 */
 
@@ -519,7 +529,7 @@ a.raw:hover {
 
 /* leanote nav */
 
-#leanoteNav {
+.leanoteNav {
   position: absolute; 
   right: 5px;
   border: 1px solid #ccc; 
@@ -541,13 +551,13 @@ a.raw:hover {
   span {
   	display: none;
   }
-  #leanoteNavContent {
+  .leanoteNavContent {
   	display: none;
 	overflow: auto;
   } 
 }
 
-#leanoteNav.unfolder {
+.leanoteNav.unfolder {
   min-width: 200px;
   max-width: 300px;
   // bottom: 1px;
@@ -559,13 +569,13 @@ a.raw:hover {
 	  display: inline;
   }
   
-  #leanoteNavContent {
+  .leanoteNavContent {
   	display: block;
 	min-height: 30px;
   }
 }
 
-#leanoteNav ul {
+.leanoteNav ul {
   margin:0;
   padding-left: 23px;
   li {
@@ -577,22 +587,27 @@ a.raw:hover {
   	}
   }
 }
-#leanoteNav ul .nav-h1 {
+.leanoteNav ul .nav-h1 {
 }
-#leanoteNav ul .nav-h2 {
+.leanoteNav ul .nav-h2 {
   margin-left: 20px;
 }
-#leanoteNav ul .nav-h3 {
+.leanoteNav ul .nav-h3 {
   margin-left: 30px;
 }
-#leanoteNav ul .nav-h4 {
+.leanoteNav ul .nav-h4 {
   margin-left: 40px;
 }
-#leanoteNav ul .nav-h5 {
+.leanoteNav ul .nav-h5 {
   margin-left: 50px;
 }
 .scrollTo-a {
   cursor: pointer !important;
+}
+
+#mdEditor .leanoteNav {
+	top: 10px;
+	right: 0px;
 }
 
 //---------------
@@ -779,6 +794,15 @@ background-position:-1px -670px
 	background: none;
 }
 
+.new-note {
+    background-color: #FBFCF7;
+    border: 1px solid #ddd;
+    &:hover {
+      background-color: #FBFCF7;
+      border-color: rgba(103, 95, 95, 1);
+    }
+}
+
 .new-note-left {
 	padding: 0 5px;
 	width: 95px;
@@ -811,8 +835,11 @@ background-position:-1px -670px
 	width: 100% !important;
 }
 #editorMask {
-	position: absolute; top: 0px; bottom: 0px; right: 0; left: 0; 
-	background-color: #fff;
+	position: absolute; 
+  top: 30px; 
+  bottom: 0px; right: -30px; 
+  left: 0; 
+	background-color: #fbfcf7;
 	z-index: -10;
 	.fa, a {
 		font-size: 24px;
@@ -848,7 +875,8 @@ html,body {
 #myProfile,
 #demoRegister
 {
-	display: none;
+// display: none;
+  visibility: hidden; // 不能隐藏, 不然点击目录markdown不能跳转 
 }
 #mainMask {
   position: absolute;
@@ -866,10 +894,10 @@ html,body {
 	position: absolute;
 	left:0;
 	right:0;
-	z-index:1;
+	z-index:333;
 	#leanoteMsg {
 		position: absolute;
-		width: @editorWidth;
+		width: 700px;
 		left:0;
 		right:0;
 		text-align: right;
@@ -884,7 +912,7 @@ html,body {
 	margin-left: 10px;
 }
 
-#newNoteWrap, #topNav {
+#newNoteWrap, #topNav, #lea {
 	opacity: 0;
 	&:hover {
 		opacity: 1;
@@ -897,7 +925,6 @@ html,body {
 #newMyNote, #newSharedNote {
 	position: relative;
 	.dropdown-menu {
-		left: 0px  !important;
 	}
 	.dropdown {
 		position: static;
@@ -921,11 +948,13 @@ html,body {
 	position: absolute;
 	top: @headerHeight;
 	z-index: 2;
+  background-color: #fbfcf7;
 }
 #wmd-input {
 	border: none;
-	background-color: @bgColor;
+	background-color: @bgColor !important;
 	font-size: 16px !important;
+  margin-top: 10px;
 }
 #md-section-helper {
 	display: none;
@@ -966,7 +995,7 @@ html,body {
 }
 #noteTop{
 	position: absolute;
-	z-index:2;
+	z-index:999;
 	left:0;
 	right: 150px;
 	padding: 15px 0;
@@ -974,6 +1003,7 @@ html,body {
 }
 #noteTitleDiv {
   height: 30px;
+  border: none;
 }
 #noteTitle {
   height: 100%;
@@ -996,6 +1026,7 @@ html,body {
 	opacity: 0.8;
 	overflow-x: hidden;
 	overflow-y: hidden;
+  border: none;
 	#notesAndSort {
 		display: none;
 	}
@@ -1037,7 +1068,7 @@ html,body {
 #leanoteNav {
 	background-color: @bgColor;
 	opacity: 0.3;
-	right: -30px;
+	// right: -30px;
 }
 
 .new-note-right {
@@ -1090,4 +1121,89 @@ body {
 	bottom: 10px;
 	overflow: scroll;
 	list-style: none;
+}
+
+#searchNotebookForAddDropdownList {
+	left: 0;
+}
+#searchNotebookForAdd {
+	background: none;
+}
+.writting-hide {
+	display: none;
+}
+
+@media screen and (max-width: 800px) {
+#leanoteMsg {
+	display: none;
+}
+#noteItemList, #notebook, #leftNotebook, 
+.slimScrollDiv,
+#editorContent_ifr,
+.mce-edit-area,.mce-container-body,.mce-tinymce,
+#editor .mce-ifr,
+.wmd-input,
+#noteReadContent,
+#attachList,
+#tags
+{
+	overflow: scroll !important;
+	-webkit-overflow-scrolling: touch !important; // for iphone
+}
+}
+
+@media screen and (max-device-width: 1024px) and (orientation: landscape) {
+#noteItemList, #notebook, #leftNotebook, 
+.slimScrollDiv,
+#editorContent_ifr,
+.mce-edit-area,.mce-container-body,.mce-tinymce,
+#editor .mce-ifr,
+.wmd-input,
+#noteReadContent,
+#attachList,
+#tags
+{
+	overflow: scroll !important;
+	-webkit-overflow-scrolling: touch !important; // for iphone
+}
+}
+
+#editorContent {
+  border: none;
+}
+#editorContent .ace-tomorrow {
+  background-color: #fbfcf7;
+}
+
+#wmd-input > .editor-content {
+	padding-top: 20px;
+}
+
+#editorContent {
+	padding-top: 10px;
+}
+
+#noteAndEditor {
+  position: static;
+}
+
+// tool-bar
+#editor {
+	#mceToolbar {
+	  height: 40px;
+	}
+		
+	#editorContent {
+		top: 40px;
+	}
+	
+	// 所有都展开
+	&.all-tool {
+	  #mceToolbar {
+		height: 80px;
+		}
+		#editorContent {
+			top: 80px;
+		}
+	}
 }

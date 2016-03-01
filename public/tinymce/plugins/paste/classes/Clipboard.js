@@ -1,3 +1,5 @@
+// Included from: js/tinymce/plugins/paste/classes/Clipboard.js
+
 /**
  * Clipboard.js
  *
@@ -41,6 +43,21 @@ define("tinymce/pasteplugin/Clipboard", [
 		 *
 		 * @param {String} html HTML code to paste into the current selection.
 		 */
+		 function copyImage(src, ids) {
+			ajaxPost("/file/copyHttpImage", {src: src}, function(ret) {
+				if(reIsOk(ret)) {
+					// 将图片替换之
+					// var src = urlPrefix + "/" + ret.Item;
+					var src = urlPrefix + "/file/outputImage?fileId=" + ret.Id;
+					var dom = editor.dom;
+					for(var i in ids) {
+						var id = ids[i];
+						var imgElm = dom.get(id);
+						dom.setAttrib(imgElm, 'src', src);
+					}
+				}
+			});
+		}
 		// 粘贴HTML
 		// 当在pre下时不能粘贴成HTML
 		// life add text
@@ -67,7 +84,7 @@ define("tinymce/pasteplugin/Clipboard", [
 					dom.remove(tempBody);
 					html = args.node.innerHTML;
 				}
-
+				
 				if (!args.isDefaultPrevented()) {
 					// life
 					var node = editor.selection.getNode();
@@ -85,9 +102,46 @@ define("tinymce/pasteplugin/Clipboard", [
 						// 纯HTML编辑也会
 						text = text.replace(/</g, "&lt;");
 						text = text.replace(/>/g, "&gt;");
+						// firefox下必须这个
 						editor.insertRawContent(text);
+						// 之前用insertRawContent()有问题, ace paste下, TODO
+						// editor.insertContent(text);
 					} else {
-						editor.insertContent(html);
+						// life 这里得到图片img, 复制到leanote下
+						if(!self.copyImage) {
+							editor.insertContent(html);
+						} else {
+							var urlPrefix = UrlPrefix;
+							var needCopyImages = {}; // src => [id1,id2]
+							var time = (new Date()).getTime();
+							try {
+								var $html = $("<div>" + html + "</div>");
+								var $imgs = $html.find("img");
+								for(var i = 0; i < $imgs.length; ++i) {
+									var $img = $imgs.eq(i)
+									var src = $img.attr("src");
+									// 是否是外链
+									if(src.indexOf(urlPrefix) == -1) {
+										time++;
+										var id = "__LEANOTE_IMAGE_" + time;
+										$img.attr("id", id);
+										if(needCopyImages[src]) {
+											needCopyImages[src].push(id);
+										} else {
+											needCopyImages[src] = [id];
+										}
+									}
+								}
+								editor.insertContent($html.html());
+								
+								for(var src in needCopyImages) {
+									var ids = needCopyImages[src];
+									copyImage(src, ids);
+								}
+							} catch(e) {
+								editor.insertContent(html);
+							}
+						}
 					}
 				}
 			}
@@ -213,6 +267,21 @@ define("tinymce/pasteplugin/Clipboard", [
 			return data;
 		}
 
+		function inAcePrevent() {
+			// 这个事件是从哪触发的? 浏览器自带的
+			// life ace 如果在pre中, 直接返回 TODO
+			var ace = LeaAce.nowIsInAce();
+			if(ace) {
+				// log("in aceEdiotr 2 paste");
+				// 原来这里focus了
+				setTimeout(function() {
+					ace[0].focus();
+				});
+				return true;
+			}
+			return false;
+		}
+
 		editor.on('keydown', function(e) {
 			if (e.isDefaultPrevented()) {
 				return;
@@ -220,6 +289,11 @@ define("tinymce/pasteplugin/Clipboard", [
 
 			// Ctrl+V or Shift+Insert
 			if ((VK.metaKeyPressed(e) && e.keyCode == 86) || (e.shiftKey && e.keyCode == 45)) {
+
+				if(inAcePrevent()) {
+					return;
+				}
+
 				keyboardPastePlainTextState = e.shiftKey && e.keyCode == 86;
 
 				// Prevent undoManager keydown handler from making an undo level with the pastebin in it
@@ -267,7 +341,31 @@ define("tinymce/pasteplugin/Clipboard", [
 			document.body.appendChild(img);
 		}
 		
+		// 是否有图片的粘贴, 有则删除paste bin
+		// 因为paste bin隐藏不见了, 如果不删除, 则editor_drop_paste的图片就会在这个bin下
+		// 而且, paste bin最后会删除, 导致图片不能显示
+		function hasImage(event) {
+			var items;
+			if (event.clipboardData) {
+				items = event.clipboardData.items;
+			}
+			else if(event.originalEvent && event.originalEvent.clipboardData) {
+				items = event.originalEvent.clipboardData;
+			}
+			if (!items) {
+				return false;
+			}
+			// find pasted image among pasted items
+			for (var i = 0; i < items.length; i++) {
+				if (items[i].type.indexOf("image") === 0) {
+					return true;
+			    }
+			}
+			return false;
+		}
+		
 		// 上传图片
+		// 已过时, 不用, pasteImage在editor_drop_paste.js中用
 		function pasteImage(event) {
 			// use event.originalEvent.clipboard for newer chrome versions
 			  var items = (event.clipboardData  || event.originalEvent.clipboardData).items; // 可能有多个file, 找到属于图片的file
@@ -287,6 +385,7 @@ define("tinymce/pasteplugin/Clipboard", [
 			      	var c = new FormData;
 				    c.append("from", "pasteImage");
 				    c.append("file", blob);
+				    c.append("noteId", Note.curNoteId); // life
 				    // var d;
 				    // d = $.ajaxSettings.xhr();
 				    // d.withCredentials = i;var d = {};
@@ -296,10 +395,10 @@ define("tinymce/pasteplugin/Clipboard", [
 					var dom = editor.dom;
 					var d = {};						
 					d.id = '__mcenew';
-					d.src = "http://leanote.com/images/loading-24.gif";
+					d.src = "http://leanote.com/images/loading-24.gif"; // 写死了
 					editor.insertContent(dom.createHTML('img', d));
 					var imgElm = dom.get('__mcenew');
-				    $.ajax({url: "/file/uploadImageJson", contentType:false, processData:false , data: c, type: "POST"}
+				    $.ajax({url: "/file/pasteImage", contentType:false, processData:false , data: c, type: "POST"}
 				    	).done(function(re) {
 				    		if(!re || typeof re != "object" || !re.Ok) {
 				    			// 删除
@@ -307,7 +406,9 @@ define("tinymce/pasteplugin/Clipboard", [
 				    			return;
 				    		}
 				    		// 这里, 如果图片宽度过大, 这里设置成500px
-							getImageSize(re.Id, function(wh) {
+							var urlPrefix = UrlPrefix; // window.location.protocol + "//" + window.location.host;
+							var src = urlPrefix + "/file/outputImage?fileId=" + re.Id;
+							getImageSize(src, function(wh) {
 								// life 4/25
 								if(wh && wh.width) {
 									if(wh.width > 600) {
@@ -316,7 +417,7 @@ define("tinymce/pasteplugin/Clipboard", [
 									d.width = wh.width;
 									dom.setAttrib(imgElm, 'width', d.width);
 								}
-								dom.setAttrib(imgElm, 'src', re.Id);
+								dom.setAttrib(imgElm, 'src', src);
 							});
 							dom.setAttrib(imgElm, 'id', null);
 				    	});
@@ -328,8 +429,16 @@ define("tinymce/pasteplugin/Clipboard", [
 		}
 
 		editor.on('paste', function(e) {
+			if(inAcePrevent()) {
+				removePasteBin();
+				return;
+			}
 			
-			
+			if (hasImage(e)) {
+				removePasteBin();
+				return;
+			}
+
 			var clipboardContent = getClipboardContent(e);
 			var isKeyBoardPaste = new Date().getTime() - keyboardPasteTimeStamp < 100;
 			var plainTextMode = self.pasteFormat == "text" || keyboardPastePlainTextState;
@@ -367,9 +476,8 @@ define("tinymce/pasteplugin/Clipboard", [
 
 					if (html == pasteBinDefaultContent) {
 						if (!isKeyBoardPaste) {
-							editor.windowManager.alert('Please use Ctrl+V/Cmd+V keyboard shortcuts to paste contents.');
+							// editor.windowManager.alert('Please use Ctrl+V/Cmd+V keyboard shortcuts to paste contents.');
 						}
-
 						return;
 					}
 				}
@@ -381,18 +489,7 @@ define("tinymce/pasteplugin/Clipboard", [
 					pasteHtml(html, clipboardContent['text/plain']);
 				}
 			}, 0);
-			
-			//-----------
-			// paste image
-			try {
-				if(pasteImage(e)) {
-					return;
-				}
-			} catch(e) {};
-
 		});
-		
-		
 
 		self.pasteHtml = pasteHtml;
 		self.pasteText = pasteText;
